@@ -1,382 +1,519 @@
-# OrdersApi - Gestión de Pedidos y Ciclo de Vida de Servicios en .NET 8
+# Orders API - Ciclos de Vida de Dependencias en ASP.NET Core
 
-## Descripción del Proyecto
+##  Descripción del Proyecto
 
-Desarrollé esta API REST con .NET 8 para demostrar y comprender cómo funcionan los tres ciclos de vida de servicios en ASP.NET Core: **Transient**, **Scoped** y **Singleton**. El proyecto gestiona pedidos en memoria y me permitió observar de manera práctica cómo cada ciclo de vida afecta el comportamiento de la aplicación.
+Esta API demuestra los tres ciclos de vida de inyección de dependencias en ASP.NET Core: **Transient**, **Scoped** y **Singleton**. Utiliza el mismo servicio (`OrderService`) registrado con diferentes ciclos de vida para ilustrar cómo cada uno gestiona las instancias.
 
----
+**Repositorio:** https://github.com/DRMiguel25/Tipos-de-Inyecci-n-de-Dependencias-en-.NET.git
 
-## Tecnologías Utilizadas
+##  Implementación de Cada Tipo de Servicio
 
-- **.NET 8 SDK** (ASP.NET Core Web API)
-- **C#** como lenguaje de programación
-- **Swagger/OpenAPI** para documentación automática
-- **Postman** para pruebas de endpoints
-- **Zorin OS** (Linux) como entorno de desarrollo
-
----
-
-## Tabla de Contenidos
-
-1. [Instalación y Ejecución](#instalación-y-ejecución)
-2. [Estructura del Proyecto](#estructura-del-proyecto)
-3. [Implementación de los Servicios](#implementación-de-los-servicios)
-4. [Pruebas y Comportamiento Observado](#pruebas-y-comportamiento-observado)
-5. [Escenarios de Uso Real](#escenarios-de-uso-real)
-6. [Diagramas del Ciclo de Vida](#diagramas-del-ciclo-de-vida)
-
----
-
-## Instalación y Ejecución
-
-### Clonar el repositorio:
-```bash
-git clone https://github.com/DRMiguel25/Tipos-de-Inyecci-n-de-Dependencias-en-.NET.git
-cd OrdersApi
-```
-
-### Ejecutar el proyecto:
-```bash
-dotnet run
-```
-
-### Acceder a Swagger:
-```
-http://localhost:5078/swagger
-```
-
----
-
-## Estructura del Proyecto
-
-Organicé el proyecto siguiendo las mejores prácticas de arquitectura limpia:
-
-```
-OrdersApi/
-├── Controllers/
-│   └── OrdersController.cs    # Endpoints REST de la API
-├── Models/
-│   └── Order.cs               # Modelo de datos del pedido
-├── Services/
-│   ├── IOrderService.cs       # Interfaz del servicio
-│   └── OrderService.cs        # Implementación del servicio
-├── Program.cs                 # Configuración e inyección de dependencias
-├── OrdersApi.csproj          # Archivo de proyecto
-└── README.md                 # Este archivo
-```
-
----
-
-## Implementación de los Servicios
-
-### 1. Modelo Order
-
-Creé la clase `Order` con las propiedades necesarias para representar un pedido:
-
-```csharp
-public class Order
-{
-    public int Id { get; set; }
-    public string NombreProducto { get; set; } = string.Empty;
-    public int Cantidad { get; set; }
-    public DateTime Fecha { get; set; } = DateTime.UtcNow;
-}
-```
-
-### 2. Interfaz IOrderService
-
-Definí la interfaz con los métodos que necesitaba para gestionar pedidos:
-
-```csharp
-public interface IOrderService
-{
-    Guid GetInstanceId();           // Para identificar la instancia
-    void AddOrder(Order order);     // Para agregar pedidos
-    List<Order> GetOrders();        // Para obtener todos los pedidos
-    int GetOrdersCount();           // Para contar pedidos
-}
-```
-
-### 3. Implementación OrderService
-
-Implementé el servicio con lógica completa:
-
-```csharp
-public class OrderService : IOrderService
-{
-    private readonly Guid _instanceId;
-    private readonly List<Order> _orders = new();
-
-    public OrderService()
-    {
-        _instanceId = Guid.NewGuid();
-    }
-
-    public Guid GetInstanceId() => _instanceId;
-
-    public void AddOrder(Order order)
-    {
-        order.Id = _orders.Count == 0 ? 1 : _orders.Max(o => o.Id) + 1;
-        _orders.Add(order);
-    }
-
-    public List<Order> GetOrders() => _orders;
-    
-    public int GetOrdersCount() => _orders.Count;
-}
-```
-
-### 4. Registro de Servicios en Program.cs
-
-Registré el mismo servicio tres veces con diferentes ciclos de vida usando Keyed Services:
-
+### 1. **Transient** (`AddKeyedTransient`)
 ```csharp
 builder.Services.AddKeyedTransient<IOrderService, OrderService>("transient");
+```
+
+**Características:**
+- Se crea una **nueva instancia** cada vez que se solicita el servicio
+- Cada inyección en el constructor genera un objeto diferente
+- Cada petición HTTP obtiene instancias completamente independientes
+
+**Implementación en el código:**
+- Registrado con la clave `"transient"` en `Program.cs`
+- Inyectado en el controlador usando `[FromKeyedServices("transient")]`
+- Los datos (`_orders`) no persisten entre peticiones porque cada instancia tiene su propia lista
+
+### 2. **Scoped** (`AddKeyedScoped`)
+```csharp
 builder.Services.AddKeyedScoped<IOrderService, OrderService>("scoped");
+```
+
+**Características:**
+- Se crea **una instancia por solicitud HTTP**
+- Dentro de la misma petición, todas las inyecciones comparten la misma instancia
+- Al finalizar la petición, la instancia se destruye
+
+**Implementación en el código:**
+- Registrado con la clave `"scoped"`
+- Ideal para operaciones que necesitan compartir estado durante una transacción HTTP
+- Los datos persisten solo durante la ejecución de una petición
+
+### 3. **Singleton** (`AddKeyedSingleton`)
+```csharp
 builder.Services.AddKeyedSingleton<IOrderService, OrderService>("singleton");
 ```
 
-### 5. Controlador OrdersController
+**Características:**
+- Se crea **una única instancia** durante toda la vida de la aplicación
+- Todas las peticiones y todos los servicios comparten la misma instancia
+- Los datos persisten mientras la aplicación esté ejecutándose
 
-Inyecté los tres servicios en el controlador usando el atributo `[FromKeyedServices]`:
+**Implementación en el código:**
+- Registrado con la clave `"singleton"`
+- La lista `_orders` se mantiene entre todas las peticiones HTTP
+- El `_instanceId` es el mismo para todas las operaciones
 
-```csharp
-public class OrdersController : ControllerBase
-{
-    private readonly IOrderService _transientService;
-    private readonly IOrderService _scopedService;
-    private readonly IOrderService _singletonService;
+##  Comportamiento Observado en las Pruebas
 
-    public OrdersController(
-        [FromKeyedServices("transient")] IOrderService transientService,
-        [FromKeyedServices("scoped")] IOrderService scopedService,
-        [FromKeyedServices("singleton")] IOrderService singletonService)
-    {
-        _transientService = transientService;
-        _scopedService = scopedService;
-        _singletonService = singletonService;
-    }
-}
-```
+### Prueba con **Transient**
 
----
+| Acción | Resultado |
+|--------|-----------|
+| POST `/api/orders/transient` | Agrega un pedido, pero... |
+| GET `/api/orders/transient` | **Cantidad: 0** - La lista está vacía |
+| Múltiples POST | Cada POST crea una nueva instancia, no hay acumulación |
+| `GetInstanceId()` | Devuelve GUIDs diferentes en cada petición |
 
-## Pruebas y Comportamiento Observado
+**Observación clave:** Los datos **no persisten** porque cada petición usa una instancia diferente.
 
-### Endpoints Implementados
-
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| `GET` | `/api/orders/transient` | Obtener información del servicio Transient |
-| `POST` | `/api/orders/transient` | Agregar pedido al servicio Transient |
-| `GET` | `/api/orders/scoped` | Obtener información del servicio Scoped |
-| `POST` | `/api/orders/scoped` | Agregar pedido al servicio Scoped |
-| `GET` | `/api/orders/singleton` | Obtener información del servicio Singleton |
-| `POST` | `/api/orders/singleton` | Agregar pedido al servicio Singleton |
-
-### Ejemplo de cuerpo para POST:
+**Ejemplo de respuesta:**
 ```json
 {
-  "NombreProducto": "Laptop Dell",
-  "Cantidad": 2
+  "Ciclo": "Transient",
+  "Instancia": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "Cantidad": 0,
+  "Pedidos": []
 }
 ```
 
-### Resultados de las Pruebas
+### Prueba con **Scoped**
 
-Realicé múltiples solicitudes HTTP con Postman y observé lo siguiente:
+| Acción | Resultado |
+|--------|-----------|
+| POST `/api/orders/scoped` | Agrega un pedido |
+| GET `/api/orders/scoped` (misma petición) | Mostraría el pedido si se hace en el mismo request |
+| GET `/api/orders/scoped` (nueva petición) | **Cantidad: 0** - Nueva instancia |
+| `GetInstanceId()` | Cambia entre peticiones, pero sería igual dentro de la misma |
 
-#### Transient
-- **InstanceId:** Cambió en cada solicitud
-- **Lista de pedidos:** Siempre vacía, se reinició en cada llamada
-- **Conclusión:** Cada vez que solicité el servicio, se creó una nueva instancia completamente independiente
+**Observación clave:** Los datos persisten **solo durante la petición** actual.
 
-#### Scoped
-- **InstanceId:** Se mantuvo igual durante una misma solicitud HTTP
-- **Lista de pedidos:** Persistió solo dentro de la misma petición
-- **Conclusión:** En APIs REST, como cada llamada es independiente, se comportó similar a Transient
+**Ejemplo de respuesta:**
+```json
+{
+  "Ciclo": "Scoped",
+  "Instancia": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+  "Cantidad": 0,
+  "Pedidos": []
+}
+```
 
-#### Singleton
-- **InstanceId:** Siempre fue el mismo durante toda la ejecución de la aplicación
-- **Lista de pedidos:** Se mantuvo entre todas las solicitudes
-- **Conclusión:** Una única instancia compartida globalmente que conservó todos los pedidos agregados
+### Prueba con **Singleton**
 
-### Tabla Comparativa de Comportamiento
+| Acción | Resultado |
+|--------|-----------|
+| POST `/api/orders/singleton` (Pedido 1) | Total: 1 |
+| POST `/api/orders/singleton` (Pedido 2) | Total: 2 |
+| GET `/api/orders/singleton` | **Cantidad: 2** - Todos los pedidos están ahí |
+| Reiniciar navegador/cliente | Los datos **siguen ahí** |
+| `GetInstanceId()` | Siempre el mismo GUID |
 
-| Ciclo de Vida | ¿Cambia el InstanceId? | ¿Se mantienen los pedidos? |
-|--------------|------------------------|---------------------------|
-| **Transient** | Sí, en cada solicitud | No, siempre vacía |
-| **Scoped** | No, durante la solicitud | Sí, en la misma petición |
-| **Singleton** | No, nunca cambia | Sí, toda la aplicación |
+**Observación clave:** Los datos persisten **durante toda la ejecución de la aplicación**.
 
----
+**Ejemplo de respuesta después de agregar 2 pedidos:**
+```json
+{
+  "Ciclo": "Singleton",
+  "Instancia": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+  "Cantidad": 2,
+  "Pedidos": [
+    {
+      "Id": 1,
+      "NombreProducto": "Laptop",
+      "Cantidad": 1,
+      "Fecha": "2025-10-22T10:30:00Z"
+    },
+    {
+      "Id": 2,
+      "NombreProducto": "Mouse",
+      "Cantidad": 3,
+      "Fecha": "2025-10-22T10:31:00Z"
+    }
+  ]
+}
+```
 
-## Escenarios de Uso Real
+##  Escenarios de Uso en Proyectos Reales
 
-Basándome en mi experiencia con este proyecto, identifico los siguientes escenarios de uso:
+###  Cuándo usar **Transient**
 
-### Transient - Nueva instancia cada vez
-**Cuándo lo usaría:**
-- Servicios de validación de datos
-- Helpers o utilidades sin estado
-- Conversores de formato (JSON, XML, etc.)
-- Servicios que no necesitan mantener información entre llamadas
+**Escenarios ideales:**
+- **Servicios ligeros sin estado** (stateless)
+- Operaciones de transformación de datos
+- Validadores que no mantienen información
+- Servicios de mapeo (AutoMapper profiles)
+- Generadores de tokens o IDs únicos
+- Servicios de notificaciones por email/SMS
 
 **Ejemplo real:**
 ```csharp
-builder.Services.AddTransient<IEmailValidator, EmailValidator>();
+// Servicio que genera PDFs - cada petición necesita su propio generador
+builder.Services.AddTransient<IPdfGenerator, PdfGenerator>();
+
+// Servicio de encriptación - sin estado compartido
+builder.Services.AddTransient<IEncryptionService, AesEncryptionService>();
+
+// Validadores
+builder.Services.AddTransient<IOrderValidator, OrderValidator>();
 ```
 
-### Scoped - Una instancia por solicitud
-**Cuándo lo usaría:**
-- Contextos de base de datos (Entity Framework DbContext)
-- Servicios que necesitan mantener estado durante una transacción
-- Servicios relacionados con el usuario actual en una petición
-- Operaciones que requieren consistencia dentro de una solicitud
+** No usar cuando:**
+- El servicio es costoso de crear (conexiones a BD, clientes HTTP)
+- Necesitas compartir estado entre componentes
+- El servicio mantiene recursos no administrados
+
+###  Cuándo usar **Scoped**
+
+**Escenarios ideales:**
+- **DbContext de Entity Framework** (el caso más común)
+- Unidades de trabajo (Unit of Work pattern)
+- Servicios que necesitan mantener estado durante una petición
+- Tracking de cambios en una transacción
+- Servicios de auditoría por petición
+- Repositorios que comparten el mismo contexto de BD
 
 **Ejemplo real:**
 ```csharp
-builder.Services.AddScoped<AppDbContext>();
-builder.Services.AddScoped<IUserService, UserService>();
+// DbContext - una instancia por petición HTTP
+builder.Services.AddScoped<ApplicationDbContext>();
+
+// Servicio de auditoría que registra acciones en la misma transacción
+builder.Services.AddScoped<IAuditService, AuditService>();
+
+// Unit of Work que coordina múltiples repositorios
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+// Repositorio que usa el DbContext scoped
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 ```
 
-### Singleton - Una instancia global
-**Cuándo lo usaría:**
-- Sistemas de caché en memoria
+** No usar cuando:**
+- Necesitas compartir datos entre diferentes usuarios/peticiones
+- El servicio es completamente stateless (mejor Transient)
+- Necesitas persistencia más allá de una petición HTTP
+
+###  Cuándo usar **Singleton**
+
+**Escenarios ideales:**
+- **Configuraciones que no cambian** durante la ejecución
+- Cachés en memoria (MemoryCache)
+- Clientes HTTP reutilizables (HttpClient con IHttpClientFactory)
 - Servicios de logging
-- Configuraciones globales de la aplicación
-- Servicios que son costosos de crear y son thread-safe
-- Contadores o estadísticas globales
+- Servicios de configuración
+- Contadores globales o estadísticas de la aplicación
+- Servicios de feature flags
 
 **Ejemplo real:**
 ```csharp
-builder.Services.AddSingleton<ICacheService, MemoryCacheService>();
-builder.Services.AddSingleton<ILogger, AppLogger>();
+// Caché global de la aplicación
+builder.Services.AddSingleton<IMemoryCache, MemoryCache>();
+
+// Servicio de configuración
+builder.Services.AddSingleton<IAppSettings, AppSettings>();
+
+// Cliente HTTP compartido
+builder.Services.AddHttpClient<IExternalApiClient, ExternalApiClient>();
+
+// Servicio de métricas global
+builder.Services.AddSingleton<IMetricsCollector, MetricsCollector>();
+
+// Logger factory
+builder.Services.AddSingleton<ILoggerFactory, LoggerFactory>();
 ```
 
-### Consideraciones Importantes
+** CUIDADO - No usar cuando:**
+- El servicio no es **thread-safe** (puede causar condiciones de carrera)
+- Mantiene estado específico del usuario (violación de privacidad/seguridad)
+- Inyecta servicios Scoped (causará excepciones en runtime)
+- El servicio necesita ser liberado/disposed regularmente
 
-1. **Transient:** No usar para servicios pesados que se llaman frecuentemente (impacto en performance)
-2. **Scoped:** Ideal para DbContext porque mantiene el seguimiento de cambios durante la petición
-3. **Singleton:** Tener cuidado con estado mutable y concurrencia (thread-safety)
+##  Diagramas de Ciclos de Vida
+
+### Diagrama 1: Ciclo de Vida General
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    APLICACIÓN ASP.NET CORE                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                               │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │  TRANSIENT   │  │   SCOPED     │  │  SINGLETON   │      │
+│  ├──────────────┤  ├──────────────┤  ├──────────────┤      │
+│  │ Nueva inst.  │  │ Una inst.    │  │ Una inst.    │      │
+│  │ por inyec.   │  │ por request  │  │ por app      │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+│         │                  │                  │              │
+│    ┌────┴────┐        ┌────┴────┐       ┌────┴────┐        │
+│    │ Inst A1 │        │ Inst B1 │       │ Inst C  │        │
+│    │ Inst A2 │        │         │       │ (única) │        │
+│    │ Inst A3 │        └─────────┘       └─────────┘        │
+│    │   ...   │             │                  │             │
+│    └─────────┘        Se destruye       Vive toda          │
+│   Se crean y           al terminar        la app           │
+│   destruyen            el request                           │
+│   constantemente                                            │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Diagrama 2: Flujo de Peticiones HTTP
+```
+REQUEST 1                    REQUEST 2                    REQUEST 3
+───────────────              ───────────────              ───────────────
+
+ Transient                  Transient                  Transient
+Instancia: A1                Instancia: B1                Instancia: C1
+Orders: []                   Orders: []                   Orders: []
+POST → Agrega 1              POST → Agrega 1              GET → []
+(no persiste)                (no persiste)                (lista vacía)
+
+ Scoped                     Scoped                     Scoped
+Instancia: A2                Instancia: B2                Instancia: C2
+Orders: []                   Orders: []                   Orders: []
+POST → Agrega 1              POST → Agrega 1              GET → []
+(persiste en request)        (nueva instancia)            (nueva instancia)
+
+ Singleton                  Singleton                  Singleton
+Instancia: ÚNICA             Instancia: MISMA             Instancia: MISMA
+Orders: []                   Orders: [1]                  Orders: [1, 2]
+POST → Orders: [1]           POST → Orders: [1, 2]        GET → [1, 2]
+(persiste siempre)           (acumula)                    (acumula)
+```
+
+### Diagrama 3: Árbol de Dependencias
+```
+                         ┌──────────────────┐
+                         │ OrdersController │
+                         └────────┬─────────┘
+                                  │
+                 ┌────────────────┼────────────────┐
+                 │                │                │
+                 ▼                ▼                ▼
+        ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+        │  Transient  │  │   Scoped    │  │  Singleton  │
+        │ IOrderSvc   │  │ IOrderSvc   │  │ IOrderSvc   │
+        └─────────────┘  └─────────────┘  └─────────────┘
+               │                │                │
+               │                │                │
+        Cada llamada      Por request      Una vez
+        = Nueva inst.     = Misma inst.    = Siempre igual
+        
+        InstanceId:       InstanceId:      InstanceId:
+        guid-1            guid-4           guid-7
+        guid-2            guid-5           guid-7
+        guid-3            guid-6           guid-7
+        (siempre          (cambia por      (nunca
+         diferente)        request)         cambia)
+```
+
+### Diagrama 4: Persistencia de Datos
+```
+TIEMPO ────────────────────────────────────────────────────────►
+
+ TRANSIENT
+[Data]     [    ]     [    ]     [    ]     [    ]
+   ↓         ↓         ↓         ↓         ↓
+Request 1  Req 2    Req 3    Req 4    Req 5
+(No hay persistencia - cada petición inicia vacío)
+
+
+ SCOPED
+[Data═══════]  [Data═══════]  [Data═══════]
+   Request 1      Request 2      Request 3
+(Persiste durante el request, luego se limpia)
+
+
+ SINGLETON
+[Data═══════════════════════════════════════════════════════►]
+  Request 1→2→3→4→5→...→N
+(Persiste durante toda la vida de la aplicación)
+```
+
+### Diagrama 5: Comparación Visual
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   COMPARACIÓN DE LIFETIMES                   │
+├─────────────────┬──────────────┬──────────────┬─────────────┤
+│  Característica │  Transient   │   Scoped     │  Singleton  │
+├─────────────────┼──────────────┼──────────────┼─────────────┤
+│ Instancias      │ Múltiples    │ 1 por req    │ Una única   │
+│ Persistencia    │ No           │ Por request  │ Toda la app │
+│ Thread-safe     │ Sí*          │ Sí*          │ Debe serlo  │
+│ Memoria         │ Alta rotación│ Media        │ Baja        │
+│ Performance     │ Más lento    │ Balanceado   │ Más rápido  │
+│ Complejidad     │ Simple       │ Moderada     │ Alta        │
+└─────────────────┴──────────────┴──────────────┴─────────────┘
+* Si no mantiene estado compartido
+```
+
+##  Cómo Probar la API
+
+### 1. Clonar el Repositorio
+```bash
+git clone https://github.com/DRMiguel25/Tipos-de-Inyecci-n-de-Dependencias-en-.NET.git
+cd Tipos-de-Inyecci-n-de-Dependencias-en-.NET
+```
+
+### 2. Restaurar Dependencias y Ejecutar
+```bash
+dotnet restore
+dotnet run
+```
+
+### 3. Acceder a la API
+
+- **URL Base:** http://localhost:5078
+- **Swagger UI:** http://localhost:5078/swagger
+- **Raíz:** http://localhost:5078/
+
+### 4. Secuencia de Pruebas Recomendada
+
+#### Prueba A: Singleton (Persistencia Global)
+```bash
+# 1. Agregar primer pedido
+POST http://localhost:5078/api/orders/singleton
+Body: {
+  "nombreProducto": "Laptop Dell",
+  "cantidad": 1
+}
+
+# 2. Agregar segundo pedido
+POST http://localhost:5078/api/orders/singleton
+Body: {
+  "nombreProducto": "Mouse Logitech",
+  "cantidad": 3
+}
+
+# 3. Obtener todos los pedidos
+GET http://localhost:5078/api/orders/singleton
+# Resultado: Verás AMBOS pedidos 
+
+# 4. Hacer otro GET después de 5 minutos
+GET http://localhost:5078/api/orders/singleton
+# Resultado: Los pedidos SIGUEN ahí 
+```
+
+#### Prueba B: Transient (Sin Persistencia)
+```bash
+# 1. Agregar pedido
+POST http://localhost:5078/api/orders/transient
+Body: {
+  "nombreProducto": "Teclado Mecánico",
+  "cantidad": 1
+}
+# Observa el InstanceId en la respuesta
+
+# 2. Intentar obtener pedidos
+GET http://localhost:5078/api/orders/transient
+# Resultado: Cantidad = 0, Pedidos = [] 
+# Observa que el InstanceId es DIFERENTE al del POST
+```
+
+#### Prueba C: Scoped (Persistencia por Request)
+```bash
+# 1. Agregar pedido
+POST http://localhost:5078/api/orders/scoped
+Body: {
+  "nombreProducto": "Monitor LG",
+  "cantidad": 2
+}
+
+# 2. Inmediatamente hacer GET
+GET http://localhost:5078/api/orders/scoped
+# Resultado: Cantidad = 0 (es un nuevo request) 
+
+# 3. Observar InstanceId diferentes entre requests
+```
+
+### 5. Comparación de InstanceIds
+```bash
+# Ejecuta estos 3 GET varias veces y observa los GUIDs:
+
+GET http://localhost:5078/api/orders/transient
+# InstanceId: cambia en CADA petición
+
+GET http://localhost:5078/api/orders/scoped
+# InstanceId: cambia en CADA petición
+
+GET http://localhost:5078/api/orders/singleton
+# InstanceId: SIEMPRE el mismo 
+```
+
+##  Resultados Esperados
+
+### Tabla Comparativa de Pruebas
+
+| Acción | Transient | Scoped | Singleton |
+|--------|-----------|--------|-----------|
+| POST pedido #1 | Agrega (Total: 1) | Agrega (Total: 1) | Agrega (Total: 1) |
+| GET inmediato | Cantidad: 0  | Cantidad: 0  | Cantidad: 1  |
+| POST pedido #2 | Agrega (Total: 1) | Agrega (Total: 1) | Agrega (Total: 2) |
+| GET después | Cantidad: 0  | Cantidad: 0  | Cantidad: 2  |
+| InstanceId | Siempre diferente | Diferente por request | Siempre igual |
+
+##  Conclusiones y Mejores Prácticas
+
+### Resumen de Cuándo Usar Cada Uno
+
+1. **Transient**: 
+   - Default para servicios stateless
+   - Bajo consumo de memoria si el servicio es ligero
+   - Ideal para operaciones independientes
+
+2. **Scoped**: 
+   - **Default recomendado para aplicaciones web**
+   - Perfecto para DbContext y Unit of Work
+   - Balancea rendimiento y seguridad
+
+3. **Singleton**: 
+   - Solo para servicios verdaderamente globales
+   - DEBE ser thread-safe
+   - Excelente para cachés y configuraciones
+
+### Reglas de Oro
+
+ **SÍ hacer:**
+- Usar Scoped para DbContext
+- Usar Singleton para cachés thread-safe
+- Documentar por qué elegiste cada lifetime
+- Probar la concurrencia en Singletons
+
+ **NO hacer:**
+- Inyectar Scoped en Singleton (excepción en runtime)
+- Usar Singleton para estado del usuario
+- Asumir que Transient es siempre la opción más segura
+- Ignorar el impacto en memoria de Transient con servicios pesados
+
+### Patrón de Decisión Rápida
+```
+¿El servicio mantiene estado?
+├─ NO → ¿Es costoso de crear?
+│       ├─ NO → Transient 
+│       └─ SÍ → Singleton (si thread-safe) 
+│
+└─ SÍ → ¿El estado es por usuario/request?
+        ├─ SÍ → Scoped 
+        └─ NO → ¿Es compartido globalmente?
+                ├─ SÍ → Singleton (con thread-safety) 
+                └─ NO → Revisar diseño 
+```
 
 ---
 
-## Diagramas del Ciclo de Vida
+##  Tecnologías Utilizadas
 
-### 1. Transient: Nueva instancia en cada solicitud
-
-```
-[Solicitud 1] → [Crea OrderService] → [GUID: A1B2C3] → [Lista vacía]
-                     ↓
-              [Se destruye después de usarse]
-
-[Solicitud 2] → [Crea OrderService] → [GUID: X9Y8Z7] → [Lista vacía]
-                     ↓
-              [Se destruye después de usarse]
-
-[Solicitud 3] → [Crea OrderService] → [GUID: M4N5O6] → [Lista vacía]
-                     ↓
-              [Se destruye después de usarse]
-```
-
-Cada solicitud crea una instancia nueva. No hay estado compartido.
-
----
-
-### 2. Scoped: Misma instancia por solicitud HTTP
-
-```
-[Solicitud 1 - Inicio]
-    ↓
-[Crea OrderService] → [GUID: A1B2C3]
-    ↓
-├── GET /scoped → [GUID: A1B2C3, Pedidos: 0]
-├── POST /scoped → [Agrega pedido, Pedidos: 1]
-└── GET /scoped → [GUID: A1B2C3, Pedidos: 1]
-    ↓
-[Solicitud 1 - Fin] → [Se destruye la instancia]
-
-[Solicitud 2 - Inicio]
-    ↓
-[Crea OrderService] → [GUID: X9Y8Z7, Pedidos: 0]
-    ↓
-[Solicitud 2 - Fin] → [Se destruye la instancia]
-```
-
-Misma instancia durante una solicitud. Se destruye al finalizar la petición.
-
----
-
-### 3. Singleton: Una instancia global
-
-```
-[Inicio de la Aplicación]
-         ↓
-[Crea OrderService UNA VEZ] → [GUID: S7T8U9]
-         ↓
-    ┌────┴────┐
-    │         │
-[Solicitud 1] [Solicitud 2] [Solicitud 3]
-    │         │         │
-    ├─────────┼─────────┤
-    │    MISMA INSTANCIA │
-    └─────────┴─────────┘
-         ↓
-[GUID: S7T8U9, Pedidos acumulados: 1, 2, 3...]
-         ↓
-[Fin de la Aplicación] → [Se destruye]
-```
-
-Una única instancia para toda la aplicación. Estado compartido entre todas las solicitudes.
-
----
-
-### Diagrama Comparativo Visual
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                  CICLO DE VIDA                          │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  TRANSIENT:    [●] [●] [●] [●]  ← Nueva cada vez       │
-│                                                         │
-│  SCOPED:       [Request 1: ●] [Request 2: ●]           │
-│                                                         │
-│  SINGLETON:    [●]  ← Solo una instancia               │
-│                ↑                                        │
-│                └── Compartida por todos                │
-└─────────────────────────────────────────────────────────┘
-```
-
----
-
-## Conclusiones
-
-Este proyecto me permitió comprender cómo funciona la inyección de dependencias en .NET y cuándo usar cada ciclo de vida:
-
-1. **Transient** es útil cuando no necesito mantener estado y el servicio es ligero
-2. **Scoped** es perfecto para trabajar con bases de datos usando Entity Framework
-3. **Singleton** es poderoso pero requiere cuidado con la concurrencia
-
-La implementación de Keyed Services en .NET 8 facilitó poder comparar los tres ciclos de vida en el mismo controlador.
-
----
-
-## Licencia
-
-Este proyecto está bajo la licencia MIT.
-
----
+- ASP.NET Core 8.0.414
+- C# 12
+- Swagger/OpenAPI
+- Keyed Services (Inyección de dependencias con claves)
 
 ## Autor
+DRMiguel25
 
-**Miguel**  
-GitHub: [@DRMiguel25](https://github.com/DRMiguel25)
+**Repositorio:** https://github.com/DRMiguel25/Tipos-de-Inyecci-n-de-Dependencias-en-.NET.git
 
 ---
 
-## Referencias
+##  Referencias
 
-- [Documentación oficial de ASP.NET Core - Dependency Injection](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection)
-- [Service Lifetimes en .NET](https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection#service-lifetimes)
+- [Microsoft Docs - Dependency Injection](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection)
+- [Service Lifetimes](https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection#service-lifetimes)
+- [Keyed Services](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection#keyed-services)
