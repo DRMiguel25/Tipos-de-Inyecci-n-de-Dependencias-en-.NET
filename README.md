@@ -231,27 +231,27 @@ builder.Services.AddSingleton<ILoggerFactory, LoggerFactory>();
 ### Diagrama 1: Ciclo de Vida General
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    APLICACIÓN ASP.NET CORE                   │
+│                    APLICACIÓN ASP.NET CORE                  │
 ├─────────────────────────────────────────────────────────────┤
-│                                                               │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │  TRANSIENT   │  │   SCOPED     │  │  SINGLETON   │      │
-│  ├──────────────┤  ├──────────────┤  ├──────────────┤      │
-│  │ Nueva inst.  │  │ Una inst.    │  │ Una inst.    │      │
-│  │ por inyec.   │  │ por request  │  │ por app      │      │
-│  └──────────────┘  └──────────────┘  └──────────────┘      │
-│         │                  │                  │              │
-│    ┌────┴────┐        ┌────┴────┐       ┌────┴────┐        │
-│    │ Inst A1 │        │ Inst B1 │       │ Inst C  │        │
-│    │ Inst A2 │        │         │       │ (única) │        │
-│    │ Inst A3 │        └─────────┘       └─────────┘        │
+│                                                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
+│  │  TRANSIENT   │  │   SCOPED     │  │  SINGLETON   │       │
+│  ├──────────────┤  ├──────────────┤  ├──────────────┤       │
+│  │ Nueva inst.  │  │ Una inst.    │  │ Una inst.    │       │
+│  │ por inyec.   │  │ por request  │  │ por app      │       │
+│  └──────────────┘  └──────────────┘  └──────────────┘       │
+│         │                  │                  │             │
+│    ┌────┴────┐        ┌────┴────┐       ┌────┴────┐         │
+│    │ Inst A1 │        │ Inst B1 │       │ Inst C  │         │
+│    │ Inst A2 │        │         │       │ (única) │         │
+│    │ Inst A3 │        └─────────┘       └─────────┘         │
 │    │   ...   │             │                  │             │
-│    └─────────┘        Se destruye       Vive toda          │
-│   Se crean y           al terminar        la app           │
+│    └─────────┘        Se destruye       Vive toda           │
+│   Se crean y           al terminar        la app            │
 │   destruyen            el request                           │
 │   constantemente                                            │
-│                                                              │
-└──────────────────────────────────────────────────────────────┘
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ### Diagrama 2: Flujo de Peticiones HTTP
@@ -330,7 +330,7 @@ Request 1  Req 2    Req 3    Req 4    Req 5
 ### Diagrama 5: Comparación Visual
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                   COMPARACIÓN DE LIFETIMES                   │
+│                   COMPARACIÓN DE LIFETIMES                  │
 ├─────────────────┬──────────────┬──────────────┬─────────────┤
 │  Característica │  Transient   │   Scoped     │  Singleton  │
 ├─────────────────┼──────────────┼──────────────┼─────────────┤
