@@ -1,0 +1,132 @@
+# Requerimientos del Proyecto: Orders API
+
+## 1. Descripción General
+
+Desarrollar una API REST en .NET 8 que implemente un sistema de gestión de pedidos para demostrar y analizar el comportamiento de los tres ciclos de vida de servicios, Transient, Scoped y Singleton mediante inyección de dependencias.
+
+## 2. Objetivos del Proyecto
+
+- Comprender y aplicar los conceptos de ciclo de vida de servicios en .NET
+- Implementar inyección de dependencias con claves (Keyed Services)
+- Observar el comportamiento diferenciado de Transient, Scoped y Singleton
+- Documentar y analizar resultados mediante pruebas con Postman
+
+## 3. Requerimientos Funcionales
+
+### 3.1 Modelo de Datos
+
+**RF-01:** El sistema debe contar con una clase `Order` que contenga:
+- Id (int): Identificador único del pedido
+- NombreProducto (string): Nombre del producto
+- Cantidad (int): Cantidad solicitada
+- Fecha (DateTime): Fecha de creación del pedido
+
+### 3.2 Servicio de Pedidos
+
+**RF-02:** Crear una interfaz IOrderService con los siguientes métodos:
+- GetInstanceId(): Retorna un Guid único de la instancia
+- AddOrder(Order order): Agrega un pedido a la lista
+- GetOrders(): Retorna todos los pedidos almacenados
+- GetOrdersCount(): Retorna la cantidad total de pedidos
+
+**RF-03:** Implementar la clase OrderService que:
+- Genere un Guid único al momento de instanciarse
+- Mantenga una lista internaList<Order> en memoria
+- Asigne automáticamente el Id consecutivo al agregar pedidos
+- Implemente todos los métodos de la interfaz IOrderService
+
+### 3.3 Registro de Servicios
+
+**RF-04:** Registrar el servicio OrderService tres veces en Program.cs:
+- Como Transient con clave transient
+- Como Scoped con clave scoped
+- Como Singleton con clave singleton
+
+### 3.4 Endpoints de la API
+
+**RF-05:** Implementar los siguientes endpoints REST:
+
+#### Transient
+- GET /api/orders/transient: Obtener información del servicio Transient
+- POST /api/orders/transient: Agregar pedido al servicio Transient
+
+#### Scoped
+- GET /api/orders/scoped: Obtener información del servicio Scoped
+- POST /api/orders/scoped: Agregar pedido al servicio Scoped
+
+#### Singleton
+- GET /api/orders/singleton: Obtener información del servicio Singleton
+- POST /api/orders/singleton: Agregar pedido al servicio Singleton
+
+**RF-06:** Cada endpoint GET debe retornar:
+- Tipo de ciclo de vida
+- Guid de la instancia actual
+- Cantidad de pedidos
+- Lista completa de pedidos
+
+## 4. Requerimientos No Funcionales
+
+**RNF-01:** El proyecto debe compilar y ejecutarse sin errores en .NET 8.0
+
+**RNF-02:** El código debe seguir las convenciones de C# y ASP.NET Core
+
+**RNF-03:** La API debe incluir documentación Swagger automática
+
+**RNF-04:** El proyecto debe organizarse en carpetas lógicas:
+- Models/: Clases de modelo
+- Services/: Interfaces y servicios
+- Controllers/: Controladores de API
+
+**RNF-05:** El código debe ser legible, con nombres descriptivos y comentarios donde sea necesario
+
+## 5. Requerimientos de Pruebas
+
+**RT-01:** Realizar pruebas con Postman o cURL para cada endpoint
+
+**RT-02:** Documentar el comportamiento observado:
+- Cambios en el InstanceId
+- Persistencia de datos en la lista de pedidos
+- Diferencias entre los tres ciclos de vida
+
+**RT-03:** Realizar múltiples solicitudes consecutivas para verificar el comportamiento
+
+## 6. Requerimientos de Documentación
+
+**RD-01:** Crear un archivo README.md que incluya:
+- Descripción de la implementación
+- Comportamiento observado en las pruebas
+- Escenarios de uso real para cada ciclo de vida
+- Diagrama visual del ciclo de vida
+
+**RD-02:** Completar la Bitácora PSP Nivel 0 con:
+- Time Recording Log (tiempo por fase)
+- Defect Recording Log (defectos encontrados)
+- Project Plan Summary (resumen del proyecto)
+
+**RD-03:** Publicar el proyecto en un repositorio Git
+
+## 7. Entregables
+
+1. Proyecto .NET 8 funcional
+2. Código fuente en repositorio Git
+3. README.md completo
+4. Bitácora PSP Nivel 0
+5. Capturas de pantalla o videos de pruebas en Postman
+
+## 8. Restricciones 
+
+**Restricciones:**
+- Uso de .NET 8.0 SDK
+- Uso de terminal y dotnet CLI
+- No se requiere base de datos (almacenamiento en memoria)
+
+
+
+## 9. Criterios de Aceptación
+
+ El proyecto compila sin errores
+ Todos los endpoints responden correctamente
+ Se observan diferencias claras entre los tres ciclos de vida
+ La documentación está completa y clara
+ La bitácora PSP está correctamente llenada
+ El código sigue buenas prácticas
