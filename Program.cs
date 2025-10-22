@@ -25,7 +25,7 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 // Añadir ruta raíz
-app.MapGet("/", () => "Orders API en ejecución. Ve a /swagger para ver los endpoints.");
+app.MapGet("/", () => " si toy viendo esto es porque el Orders API esta en ejecución. si jalo esto cambiamos al  /swagger para ver los endpoints.");
 
 // Mapear controladores (debe ir al final, pero antes de Run)
 app.MapControllers();
